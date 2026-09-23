@@ -1,0 +1,161 @@
+datasource db {
+  provider = "sqlite"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("STUDENT") // STUDENT, ADMIN
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  student  Student?
+  attempts Attempt[]
+}
+
+model Student {
+  id         String    @id @default(uuid())
+  userId     String    @unique
+  rollNumber String    @unique
+  course     String    @default("B.Tech Computer Science")
+  phone      String?
+  dob        String?
+  gender     String?
+  college    String?   @default("RK College of Engineering & Technology")
+  address    String?
+  photoUrl   String?
+  createdAt  DateTime  @default(now())
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  registrations Registration[]
+  results       Result[]
+  attempts      Attempt[]
+}
+
+model Exam {
+  id           String    @id @default(uuid())
+  examName     String
+  examCode     String?   @default("EXAM-101")
+  subject      String    @default("Computer Science")
+  examDate     DateTime?
+  startTime    String?
+  duration     Int       // duration in minutes
+  description  String?
+  regStartDate DateTime?
+  regEndDate   DateTime?
+  examFee      Int       @default(500)
+  eligibility  String?   @default("Minimum 60% aggregate in current course")
+  status       String    @default("DRAFT") // DRAFT, PUBLISHED, CLOSED, COMPLETED
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  questions     Question[]
+  registrations Registration[]
+  results       Result[]
+  attempts      Attempt[]
+}
+
+model Question {
+  id            String   @id @default(uuid())
+  examId        String
+  questionText  String
+  optionA       String
+  optionB       String
+  optionC       String
+  optionD       String
+  correctAnswer String
+  marks         Int      @default(1)
+  createdAt     DateTime @default(now())
+
+  exam    Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  answers Answer[]
+
+  @@index([examId])
+}
+
+model Registration {
+  id            String   @id @default(uuid())
+  appNumber     String?  @unique
+  studentId     String
+  examId        String
+  registeredAt  DateTime @default(now())
+  paymentStatus String   @default("PAID") // PAID, PENDING, WAIVED
+  appStatus     String   @default("APPROVED") // APPROVED, PENDING, CANCELLED
+  status        String   @default("REGISTERED") // REGISTERED, CANCELLED
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  exam    Exam    @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, examId])
+  @@index([studentId])
+  @@index([examId])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  title     String
+  message   String
+  type      String   @default("INFO") // INFO, WARNING, ANNOUNCEMENT
+  target    String   @default("ALL") // ALL, STUDENT
+  createdAt DateTime @default(now())
+}
+
+model Result {
+  id           String   @id @default(uuid())
+  studentId    String
+  examId       String
+  attemptId    String?  @unique
+  score        Int
+  totalMarks   Int
+  resultStatus String   // PASS, FAIL
+  createdAt    DateTime @default(now())
+
+  student Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  exam    Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  attempt Attempt? @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([examId])
+}
+
+model Attempt {
+  id          String    @id @default(uuid())
+  userId      String
+  studentId   String?
+  examId      String
+  startedAt   DateTime  @default(now())
+  submittedAt DateTime?
+  status      String    @default("IN_PROGRESS") // IN_PROGRESS, COMPLETED
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  student Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  exam    Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  answers Answer[]
+  result  Result?
+
+  @@unique([userId, examId])
+  @@index([userId])
+  @@index([examId])
+}
+
+model Answer {
+  id             String  @id @default(uuid())
+  attemptId      String
+  questionId     String
+  selectedAnswer String
+  isCorrect      Boolean @default(false)
+  marks          Int     @default(0)
+
+  attempt  Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([attemptId, questionId])
+  @@index([attemptId])
+  @@index([questionId])
+}
